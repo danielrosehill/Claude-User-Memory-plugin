@@ -1,6 +1,6 @@
 {
   "name": "claude-user-memory",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Persistent cross-session memory about the user, backed by Mem0. Ships two isolated contexts (personal and work) so facts, preferences, and project details learned in one session are available in the next.",
   "author": {
     "name": "Daniel Rosehill",

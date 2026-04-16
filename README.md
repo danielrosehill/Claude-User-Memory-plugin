@@ -72,12 +72,14 @@ To force a context override, say "save this to **work** memory" or "check my **p
 
 ## Configuration reference
 
-| Env var | Purpose |
-| --- | --- |
-| `MEM0_PERSONAL_API_KEY` | Mem0 API key for the personal-context project |
-| `MEM0_PERSONAL_PROJECT_ID` | Mem0 project ID for the personal-context project |
-| `MEM0_WORK_API_KEY` | Mem0 API key for the work-context project |
-| `MEM0_WORK_PROJECT_ID` | Mem0 project ID for the work-context project |
+| Env var | Required? | Purpose |
+| --- | --- | --- |
+| `MEM0_PERSONAL_API_KEY` | yes | Mem0 API key for the personal-context project |
+| `MEM0_PERSONAL_PROJECT_ID` | yes | Mem0 project ID for the personal-context project |
+| `MEM0_PERSONAL_ORG_ID` | optional | Mem0 org ID — only set if your personal Mem0 account has an explicit org scope |
+| `MEM0_WORK_API_KEY` | yes | Mem0 API key for the work-context project |
+| `MEM0_WORK_PROJECT_ID` | yes | Mem0 project ID for the work-context project |
+| `MEM0_WORK_ORG_ID` | optional | Mem0 org ID — typical for business/paid-tier accounts |
 
 ## License
 

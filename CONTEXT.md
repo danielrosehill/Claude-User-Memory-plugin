@@ -6,10 +6,10 @@ All three skills in this plugin (`recall-user-memory`, `remember-user-fact`, `co
 
 This plugin configures two isolated Mem0 connections:
 
-| MCP server    | Purpose                                              | Env vars                                                   |
-| ------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| `mem0-personal` | Personal life, preferences, hobbies, family, health | `MEM0_PERSONAL_API_KEY`, `MEM0_PERSONAL_PROJECT_ID`        |
-| `mem0-work`     | Professional work, clients, business projects       | `MEM0_WORK_API_KEY`, `MEM0_WORK_PROJECT_ID`                |
+| MCP server      | Purpose                                              | Required env vars                                    | Optional env vars       |
+| --------------- | ---------------------------------------------------- | ---------------------------------------------------- | ----------------------- |
+| `mem0-personal` | Personal life, preferences, hobbies, family, health  | `MEM0_PERSONAL_API_KEY`, `MEM0_PERSONAL_PROJECT_ID`  | `MEM0_PERSONAL_ORG_ID`  |
+| `mem0-work`     | Professional work, clients, business projects        | `MEM0_WORK_API_KEY`, `MEM0_WORK_PROJECT_ID`          | `MEM0_WORK_ORG_ID`      |
 
 They are **deliberately separate**. A personal preference must never leak into the work store, and vice versa.
 
@@ -31,6 +31,13 @@ When you call a Mem0 tool, pass the corresponding `project_id` from the env var:
 
 - Personal calls: `project_id = ${MEM0_PERSONAL_PROJECT_ID}`
 - Work calls: `project_id = ${MEM0_WORK_PROJECT_ID}`
+
+If the corresponding `ORG_ID` env var is set (Mem0 accounts on paid tiers have an explicit org scope), pass it too:
+
+- Personal calls: `org_id = ${MEM0_PERSONAL_ORG_ID}` (only if set)
+- Work calls: `org_id = ${MEM0_WORK_ORG_ID}` (only if set)
+
+If the `ORG_ID` env var is unset or empty, omit the argument entirely — don't pass an empty string, which some Mem0 endpoints reject.
 
 Also pass a stable `user_id` — use `"default"` unless the user has told you otherwise. This lets the same Mem0 project serve multiple identities later if needed.
 
