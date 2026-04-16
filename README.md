@@ -52,6 +52,18 @@ If you only want a single context to start with, set just one pair and leave the
 
 The plugin's MCP servers come online on the next Claude Code start.
 
+### 5. Authenticate each Mem0 MCP (one-time per install)
+
+Mem0's hosted MCP (`https://mcp.mem0.ai/mcp`) uses **OAuth**, not plain Bearer API-key auth. On first use, only two tools will be exposed per server: `authenticate` and `complete_authentication`.
+
+For each server (`mem0-personal` and `mem0-work`):
+
+1. Ask Claude to run the `authenticate` tool on that MCP. It returns a URL.
+2. Open the URL in a browser and approve access.
+3. Ask Claude to run `complete_authentication` on the same MCP.
+
+After this, the full memory toolset (`add_memory`, `search_memories`, `get_memories`, `update_memory`, `delete_memory`, etc.) becomes available. The API key env vars are still read by the server as a hint during the OAuth exchange — leave them set.
+
 ## Usage
 
 Mostly you don't invoke these skills directly — Claude will reach for them when the situation fits. Things that trigger them naturally:
