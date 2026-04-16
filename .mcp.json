@@ -2,17 +2,11 @@
   "mcpServers": {
     "mem0-personal": {
       "type": "http",
-      "url": "https://mcp.mem0.ai/mcp",
-      "headers": {
-        "Authorization": "Bearer ${MEM0_PERSONAL_API_KEY}"
-      }
+      "url": "https://mcp.mem0.ai/mcp"
     },
     "mem0-work": {
       "type": "http",
-      "url": "https://mcp.mem0.ai/mcp",
-      "headers": {
-        "Authorization": "Bearer ${MEM0_WORK_API_KEY}"
-      }
+      "url": "https://mcp.mem0.ai/mcp"
     }
   }
 }

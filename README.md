@@ -18,8 +18,8 @@ All three skills share a **deduction rule** for picking the right context: defau
 
 The plugin ships **two MCP server instances** pointed at Mem0's hosted MCP:
 
-- `mem0-personal` — authenticated with your personal-project API key
-- `mem0-work` — authenticated with your work-project API key
+- `mem0-personal` — OAuth'd against your personal Mem0 project
+- `mem0-work` — OAuth'd against your work Mem0 project
 
 Two separate transports means crossed wires are architecturally impossible: a `mem0-personal` call physically cannot write to the work store, regardless of what Claude decides. The skills add a second layer of safety on top by reasoning about which context applies.
 
@@ -33,36 +33,38 @@ claude plugins install danielrosehill/Claude-User-Memory-plugin
 
 ### 2. Create Mem0 projects
 
-Sign in at [app.mem0.ai](https://app.mem0.ai) and create two projects — e.g. `personal-memory` and `work-memory`. Grab the API key and project ID for each.
+Sign in at [app.mem0.ai](https://app.mem0.ai) and create two projects — e.g. `personal-memory` and `work-memory`. Grab the project ID (and org ID, if applicable) for each.
 
-### 3. Set environment variables
+### 3. Set project-scope env vars
 
-Export these in your shell (or add to `~/.bashrc` / `~/.zshrc`):
+The skills pass `project_id` (and optionally `org_id`) into every memory call, so export these in your shell:
 
 ```bash
-export MEM0_PERSONAL_API_KEY="m0-..."
 export MEM0_PERSONAL_PROJECT_ID="proj_..."
-export MEM0_WORK_API_KEY="m0-..."
 export MEM0_WORK_PROJECT_ID="proj_..."
+
+# optional — only for paid-tier accounts with an explicit org scope
+export MEM0_PERSONAL_ORG_ID="org_..."
+export MEM0_WORK_ORG_ID="org_..."
 ```
 
-If you only want a single context to start with, set just one pair and leave the other unset — the unused MCP server will be inert.
+If you only want a single context to start with, set just one pair — the unused MCP server will still register but remain unauthenticated.
 
 ### 4. Restart Claude Code
 
-The plugin's MCP servers come online on the next Claude Code start.
+The plugin's MCP servers come online on the next Claude Code start. Both will report "Needs authentication" until you complete the OAuth handshake.
 
 ### 5. Authenticate each Mem0 MCP (one-time per install)
 
-Mem0's hosted MCP (`https://mcp.mem0.ai/mcp`) uses **OAuth**, not plain Bearer API-key auth. On first use, only two tools will be exposed per server: `authenticate` and `complete_authentication`.
+Mem0's hosted MCP (`https://mcp.mem0.ai/mcp`) uses **OAuth**. On first use each server exposes only two tools: `authenticate` and `complete_authentication`.
 
 For each server (`mem0-personal` and `mem0-work`):
 
 1. Ask Claude to run the `authenticate` tool on that MCP. It returns a URL.
-2. Open the URL in a browser and approve access.
+2. Open the URL in a browser, sign into the right Mem0 account, and approve access.
 3. Ask Claude to run `complete_authentication` on the same MCP.
 
-After this, the full memory toolset (`add_memory`, `search_memories`, `get_memories`, `update_memory`, `delete_memory`, etc.) becomes available. The API key env vars are still read by the server as a hint during the OAuth exchange — leave them set.
+After this, the full memory toolset (`add_memory`, `search_memories`, `get_memories`, `update_memory`, `delete_memory`, etc.) becomes available and the token is persisted for future sessions.
 
 ## Usage
 
@@ -84,12 +86,12 @@ To force a context override, say "save this to **work** memory" or "check my **p
 
 ## Configuration reference
 
+Auth is OAuth-only — no API-key env vars. The only env vars the plugin reads are project (and optional org) scopes passed into memory calls:
+
 | Env var | Required? | Purpose |
 | --- | --- | --- |
-| `MEM0_PERSONAL_API_KEY` | yes | Mem0 API key for the personal-context project |
 | `MEM0_PERSONAL_PROJECT_ID` | yes | Mem0 project ID for the personal-context project |
 | `MEM0_PERSONAL_ORG_ID` | optional | Mem0 org ID — only set if your personal Mem0 account has an explicit org scope |
-| `MEM0_WORK_API_KEY` | yes | Mem0 API key for the work-context project |
 | `MEM0_WORK_PROJECT_ID` | yes | Mem0 project ID for the work-context project |
 | `MEM0_WORK_ORG_ID` | optional | Mem0 org ID — typical for business/paid-tier accounts |
 
