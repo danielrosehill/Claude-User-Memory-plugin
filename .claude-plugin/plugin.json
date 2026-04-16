@@ -1,0 +1,12 @@
+{
+  "name": "claude-user-memory",
+  "version": "1.0.0",
+  "description": "Persistent cross-session memory about the user, backed by Mem0. Ships two isolated contexts (personal and work) so facts, preferences, and project details learned in one session are available in the next.",
+  "author": {
+    "name": "Daniel Rosehill",
+    "url": "https://github.com/danielrosehill"
+  },
+  "repository": "https://github.com/danielrosehill/Claude-User-Memory-plugin",
+  "license": "MIT",
+  "keywords": ["memory", "mem0", "context", "personalization", "mcp"]
+}
