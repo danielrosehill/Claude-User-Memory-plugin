@@ -1,27 +1,24 @@
 # claude-user-memory
 
-A Claude Code plugin that gives Claude a **persistent, cross-session memory layer about the user**, backed by [Mem0](https://mem0.ai). Two isolated contexts — personal and work — so Claude can remember your preferences, role, ongoing projects, and corrections across sessions without mixing the two.
+A Claude Code plugin that gives Claude a **persistent, cross-session memory layer about the user**. Two isolated contexts — personal and work — so Claude can remember your preferences, role, ongoing projects, and corrections across sessions without mixing the two.
 
-This plugin is an opinionated take on a common problem: Claude Code's built-in per-project memory is great for code context, but it forgets everything about *you* the moment a new session starts, and it has no sense of which facts belong to your personal life vs. your professional work. This plugin fixes both.
+**v2.0.0 is backend-agnostic.** The plugin ships the *contract* (save / recall / commit-learnings skills + a personal/work routing rule) and leaves the concrete memory MCP to you. Pinecone, Mem0, or anything else — point the plugin at it via a workspace config file.
+
+Claude Code's built-in per-project memory is great for code context, but it forgets everything about *you* the moment a new session starts, and it has no sense of which facts belong to your personal life vs. your professional work. This plugin fixes both — without locking you into a specific memory vendor.
 
 ## What it does
 
 | Skill | When it fires | What it does |
 | --- | --- | --- |
-| `recall-user-memory` | Claude is about to ask you something a returning collaborator would already know, or needs user-specific context to answer | Semantic search against the correct Mem0 store, then silently integrates the result |
-| `remember-user-fact` | You state a preference, correct Claude, or share a durable fact | Atomic save to the correct Mem0 store, with duplicate-check before write |
+| `recall-user-memory` | Claude is about to ask you something a returning collaborator would already know, or needs user-specific context to answer | Semantic search against the configured backend, then silently integrates the result |
+| `remember-user-fact` | You state a preference, correct Claude, or share a durable fact | Atomic save to the configured backend, with duplicate-check before write |
 | `commit-learnings` | End of session, handover, or "save what you learned" | Reviews the session, proposes candidate facts, shows them for approval, then batch-saves |
 
-All three skills share a **deduction rule** for picking the right context: default to personal; switch to work only on explicit override, work-repo cwd, or unambiguously business conversation. See `CONTEXT.md` in the plugin for the full rule.
+All three skills share a **deduction rule** for picking the right context: default to personal; switch to work only on explicit override, work-repo cwd, or unambiguously business conversation. See `CONTEXT.md` for the full rule.
 
 ## How context isolation works
 
-The plugin ships **two MCP server instances** pointed at Mem0's hosted MCP:
-
-- `mem0-personal` — OAuth'd against your personal Mem0 project
-- `mem0-work` — OAuth'd against your work Mem0 project
-
-Two separate transports means crossed wires are architecturally impossible: a `mem0-personal` call physically cannot write to the work store, regardless of what Claude decides. The skills add a second layer of safety on top by reasoning about which context applies.
+The plugin requires that personal and work memory be *physically separated* at the backend — different indexes, different Mem0 projects, different accounts, whatever the backend supports. The routing rule in `CONTEXT.md` is a second layer of safety, not the only layer. Two separated stores means a personal fact cannot architecturally end up in the work store, regardless of what Claude decides in a given turn.
 
 ## Installation
 
@@ -31,40 +28,29 @@ Two separate transports means crossed wires are architecturally impossible: a `m
 claude plugins install danielrosehill/Claude-User-Memory-plugin
 ```
 
-### 2. Create Mem0 projects
+### 2. Stand up a memory backend and expose it as an MCP
 
-Sign in at [app.mem0.ai](https://app.mem0.ai) and create two projects — e.g. `personal-memory` and `work-memory`. Grab the project ID (and org ID, if applicable) for each.
+Any backend works. Two recommended options:
 
-### 3. Set project-scope env vars
+- **Pinecone** — provision one index for personal, another for work (or a single index with two namespaces if you're comfortable with the extra discipline). Install the Pinecone MCP server and register it.
+- **Mem0** — create two projects in [app.mem0.ai](https://app.mem0.ai) (one personal, one work). Configure two MCP HTTP servers pointed at `https://mcp.mem0.ai/mcp` and OAuth each separately.
 
-The skills pass `project_id` (and optionally `org_id`) into every memory call, so export these in your shell:
+Any other vector DB or memory service with an MCP interface is fair game.
 
-```bash
-export MEM0_PERSONAL_PROJECT_ID="proj_..."
-export MEM0_WORK_PROJECT_ID="proj_..."
+### 3. Create `.claude/memory-config.md` in your workspace
 
-# optional — only for paid-tier accounts with an explicit org scope
-export MEM0_PERSONAL_ORG_ID="org_..."
-export MEM0_WORK_ORG_ID="org_..."
-```
+The plugin reads this file to resolve save/recall to concrete MCP calls. Copy the template from the plugin (`templates/memory-config.example.md`) into your workspace's `.claude/` directory and fill in:
 
-If you only want a single context to start with, set just one pair — the unused MCP server will still register but remain unauthenticated.
+- Your backend's MCP tool names for search / add / update
+- Scope parameters to pass on every call (index/namespace for Pinecone; project_id/user_id for Mem0; etc.)
+- How personal and work contexts are separated
+- The record schema you want to commit to
+
+Without this file, the skills will stop and ask you to create one — they will not guess a backend.
 
 ### 4. Restart Claude Code
 
-The plugin's MCP servers come online on the next Claude Code start. Both will report "Needs authentication" until you complete the OAuth handshake.
-
-### 5. Authenticate each Mem0 MCP (one-time per install)
-
-Mem0's hosted MCP (`https://mcp.mem0.ai/mcp`) uses **OAuth**. On first use each server exposes only two tools: `authenticate` and `complete_authentication`.
-
-For each server (`mem0-personal` and `mem0-work`):
-
-1. Ask Claude to run the `authenticate` tool on that MCP. It returns a URL.
-2. Open the URL in a browser, sign into the right Mem0 account, and approve access.
-3. Ask Claude to run `complete_authentication` on the same MCP.
-
-After this, the full memory toolset (`add_memory`, `search_memories`, `get_memories`, `update_memory`, `delete_memory`, etc.) becomes available and the token is persisted for future sessions.
+The skills become active once the memory-config file is in place.
 
 ## Usage
 
@@ -80,20 +66,19 @@ To force a context override, say "save this to **work** memory" or "check my **p
 
 ## Design notes
 
-- **Why two MCPs instead of one with project-scoped args?** Hard separation at the transport layer. Relying on the model to pass the right `project_id` every single call is exactly the kind of thing that goes wrong at the worst moment. Two transports eliminate the class of bug.
-- **Why Mem0 rather than a raw vector DB?** Mem0 handles memory semantics — deduplication, updates, temporal reasoning — that you'd otherwise have to build yourself on top of Pinecone or similar. For "facts about a person" specifically, it's the right abstraction.
+- **Why backend-agnostic?** Memory stores evolve faster than Claude Code plugins should churn. The contract (two contexts, save/recall/commit, the routing rule) is stable; the backend isn't. Decoupling lets users migrate Pinecone ↔ Mem0 ↔ anything else without touching the plugin.
+- **Why two contexts rather than one?** Mixing a user's personal preferences into their business client history corrupts both stores. Hard separation at the backend, soft separation at the routing rule, no third option.
 - **Why three skills rather than one?** Each skill has a different trigger signature. `recall` fires before answering; `remember` fires in the middle of a message when a fact lands; `commit-learnings` fires at session boundaries. Collapsing them into one skill would make the trigger description incoherent.
 
-## Configuration reference
+## Upgrading from 1.x
 
-Auth is OAuth-only — no API-key env vars. The only env vars the plugin reads are project (and optional org) scopes passed into memory calls:
+v1.x shipped `.mcp.json` with two hardcoded Mem0 HTTP entries and referenced `mcp__mem0-personal__*` tools directly in every skill. v2.0.0 removes both.
 
-| Env var | Required? | Purpose |
-| --- | --- | --- |
-| `MEM0_PERSONAL_PROJECT_ID` | yes | Mem0 project ID for the personal-context project |
-| `MEM0_PERSONAL_ORG_ID` | optional | Mem0 org ID — only set if your personal Mem0 account has an explicit org scope |
-| `MEM0_WORK_PROJECT_ID` | yes | Mem0 project ID for the work-context project |
-| `MEM0_WORK_ORG_ID` | optional | Mem0 org ID — typical for business/paid-tier accounts |
+To upgrade:
+
+1. Install v2.0.0 of the plugin.
+2. Write a `.claude/memory-config.md` in each workspace that uses memory. If you want to stay on Mem0, the template's Option B reproduces the v1.x behaviour. If you're moving to Pinecone, use Option A.
+3. Remove the old `mem0-personal` / `mem0-work` MCP server entries that the 1.x plugin injected at project level — v2.0.0 does not ship them.
 
 ## License
 

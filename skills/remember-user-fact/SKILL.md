@@ -1,6 +1,6 @@
 ---
 name: remember-user-fact
-description: Save a notable fact about the user to Mem0 the moment you learn it — preferences, stable context, corrections to your behavior, recurring project details. Use immediately when the user says "remember that…", corrects you, or shares something that would help a future session. Routes to personal or work store by the deduction rule in CONTEXT.md.
+description: Save a notable fact about the user to the configured personal-memory backend the moment you learn it — preferences, stable context, corrections to your behavior, recurring project details. Use immediately when the user says "remember that…", corrects you, or shares something that would help a future session. Routes to personal or work store by the deduction rule in CONTEXT.md. Concrete backend (Pinecone, Mem0, …) comes from the workspace's .claude/memory-config.md.
 ---
 
 # Remember a user fact
@@ -24,14 +24,13 @@ Do **not** invoke for:
 
 ## How to run it
 
-1. **Pick the context** — apply the deduction rule from `CONTEXT.md`. If unsure, ask one short question ("save this to personal or work memory?").
-2. **Call the add tool**: `mcp__mem0-personal__add_memory` or `mcp__mem0-work__add_memory`.
-3. **Construct the memory**:
-   - `messages`: a short, self-contained statement of the fact in natural language. Write it from the user's perspective as if they were telling a future assistant. Example: `"I prefer pnpm over npm for new Node projects — npm's lockfile churn has burned me twice."` Include the *why* if it was given; future-you uses the why to judge edge cases.
-   - `user_id`: `"default"` unless told otherwise.
-   - `project_id`: `${MEM0_PERSONAL_PROJECT_ID}` or `${MEM0_WORK_PROJECT_ID}` matching the chosen context.
-   - `metadata` (optional): add `{"type": "preference"}`, `{"type": "correction"}`, `{"type": "project-context"}`, etc. if it helps future retrieval.
-4. **Before saving, check for duplicates** — run a quick `search_memories` for the same topic. If a near-identical memory already exists, use `update_memory` instead of creating a second one. Duplicates pollute retrieval.
+1. **Load the config** — read `.claude/memory-config.md` in the workspace. That file names the backend, the exact MCP tool to call for "add", and the scope parameters (index/namespace/project_id/etc.) for the chosen context. If the file is missing, stop and ask the user to install one (copy the plugin's `templates/memory-config.example.md`).
+2. **Pick the context** — apply the deduction rule from `CONTEXT.md`. If unsure, ask one short question ("save this to personal or work memory?").
+3. **Call the configured add tool** with the context's scope parameters. Construct the record according to the schema in `memory-config.md`; at minimum:
+   - A self-contained natural-language statement of the fact, written from the user's perspective as if they were telling a future assistant. Example: `"I prefer pnpm over npm for new Node projects — npm's lockfile churn has burned me twice."` Include the *why* if it was given; future-you uses the why to judge edge cases.
+   - An absolute `YYYY-MM-DD` date.
+   - Optional metadata the config recommends (type=preference/correction/project-context, topic tags, etc.).
+4. **Before saving, check for duplicates** — run a quick semantic search for the same topic using the backend's search tool. If a near-identical memory already exists, prefer an update over creating a second record. Duplicates pollute retrieval.
 5. **Confirm briefly** — one short line: "Saved to personal memory." or "Saved to work memory." Do not quote the full memory back.
 
 ## Quality bar

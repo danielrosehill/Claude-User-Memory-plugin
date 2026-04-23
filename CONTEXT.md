@@ -1,17 +1,31 @@
 # Shared context for claude-user-memory skills
 
-All three skills in this plugin (`recall-user-memory`, `remember-user-fact`, `commit-learnings`) share the rules below. Read this file before calling any Mem0 tool.
+All three skills in this plugin (`recall-user-memory`, `remember-user-fact`, `commit-learnings`) share the rules below. Read this file before performing any memory operation.
 
-## Two contexts, two MCPs
+## Backend-agnostic by design
 
-This plugin configures two isolated Mem0 connections:
+This plugin does **not** ship MCP server definitions. It defines the contract for a personal-memory layer and delegates the concrete backend — Pinecone, Mem0, a raw vector DB, something else — to the workspace.
 
-| MCP server      | Purpose                                              | Required env vars                                    | Optional env vars       |
-| --------------- | ---------------------------------------------------- | ---------------------------------------------------- | ----------------------- |
-| `mem0-personal` | Personal life, preferences, hobbies, family, health  | `MEM0_PERSONAL_API_KEY`, `MEM0_PERSONAL_PROJECT_ID`  | `MEM0_PERSONAL_ORG_ID`  |
-| `mem0-work`     | Professional work, clients, business projects        | `MEM0_WORK_API_KEY`, `MEM0_WORK_PROJECT_ID`          | `MEM0_WORK_ORG_ID`      |
+To use the plugin, the user (or an agent on their behalf) places a file at `.claude/memory-config.md` in their workspace specifying:
 
-They are **deliberately separate**. A personal preference must never leak into the work store, and vice versa.
+- **Backend name** (Pinecone / Mem0 / …)
+- **Tool names** for search, add, update, (optional) delete — as literal MCP tool identifiers the agent can call
+- **Scope parameters** to pass on every call — for Pinecone this is typically `index` and `namespace`; for Mem0 it's `project_id` / `org_id` / `user_id`
+- **Personal vs. work separation** — how the backend distinguishes the two contexts (separate indexes, separate namespaces, separate Mem0 projects, etc.)
+- **Record schema** — field names, required metadata, id conventions
+
+A working template lives in `templates/memory-config.example.md` in this plugin. Copy it into the workspace and fill it in.
+
+If `.claude/memory-config.md` is missing, **stop and ask the user to provide one** rather than guessing a backend. A wrong backend write is much worse than a paused skill.
+
+## Two contexts: personal and work
+
+Every memory operation targets exactly one of two contexts:
+
+- **Personal** — life, preferences, hobbies, family, health, non-business tooling opinions
+- **Work** — professional work, clients, business projects, commercial deliverables
+
+They are **deliberately separate**. A personal preference must never leak into the work store, and vice versa. How this separation is physically enforced (separate indexes, separate namespaces, separate Mem0 projects) is specified in the workspace's `memory-config.md`.
 
 ## How to pick the right context
 
@@ -24,22 +38,6 @@ Default to **personal**. Switch to **work** only if at least one of these is tru
 If none of the above apply, use **personal**.
 
 If the signal is mixed or ambiguous, **ask the user** rather than guessing. One short question is cheaper than polluting the wrong store.
-
-## Passing project scope to Mem0
-
-When you call a Mem0 tool, pass the corresponding `project_id` from the env var:
-
-- Personal calls: `project_id = ${MEM0_PERSONAL_PROJECT_ID}`
-- Work calls: `project_id = ${MEM0_WORK_PROJECT_ID}`
-
-If the corresponding `ORG_ID` env var is set (Mem0 accounts on paid tiers have an explicit org scope), pass it too:
-
-- Personal calls: `org_id = ${MEM0_PERSONAL_ORG_ID}` (only if set)
-- Work calls: `org_id = ${MEM0_WORK_ORG_ID}` (only if set)
-
-If the `ORG_ID` env var is unset or empty, omit the argument entirely — don't pass an empty string, which some Mem0 endpoints reject.
-
-Also pass a stable `user_id` — use `"default"` unless the user has told you otherwise. This lets the same Mem0 project serve multiple identities later if needed.
 
 ## What belongs in memory
 
@@ -58,6 +56,10 @@ Also pass a stable `user_id` — use `"default"` unless the user has told you ot
 - Sensitive credentials, API keys, private tokens, or secrets of any kind
 - Opinions the user expressed once offhand but didn't commit to
 - Anything the user said in frustration rather than as a stable preference
+
+## Dates
+
+Convert relative dates ("next week", "last month") to absolute `YYYY-MM-DD` form before writing. Relative dates stored verbatim become wrong the moment the session ends.
 
 ## When a memory turns out to be wrong
 

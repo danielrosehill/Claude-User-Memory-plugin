@@ -1,6 +1,6 @@
 ---
 name: commit-learnings
-description: End-of-session sweep — review what you learned about the user during the conversation and commit durable facts to Mem0. Use when wrapping up a session, when the user says "save what you learned" or "commit this to memory", or proactively before a handover. Complements remember-user-fact (which saves in-the-moment); this skill catches facts that slipped through.
+description: End-of-session sweep — review what you learned about the user during the conversation and commit durable facts to the configured personal-memory backend. Use when wrapping up a session, when the user says "save what you learned" or "commit this to memory", or proactively before a handover. Complements remember-user-fact (which saves in-the-moment); this skill catches facts that slipped through. Concrete backend (Pinecone, Mem0, …) comes from the workspace's .claude/memory-config.md.
 ---
 
 # Commit end-of-session learnings
@@ -21,22 +21,26 @@ Do **not** invoke:
 
 ## How to run it
 
-### 1. Scan the session
+### 1. Load the config
+
+Read `.claude/memory-config.md` in the workspace. You will need the backend's search tool (for the duplicate check) and add/update tool (for the writes), plus scope parameters for both personal and work contexts. If the file is missing, stop and ask the user to install one.
+
+### 2. Scan the session
 
 Walk back through the conversation and list every candidate fact. For each, ask:
 
 - Is it about **the user** (preferences, role, context, corrections) rather than the code or task?
 - Is it **durable** — still true next week, next month?
-- Is it **not already in memory**? Quickly `search_memories` to check.
+- Is it **not already in memory**? Quickly search to check.
 - Is it **not sensitive** (no credentials, tokens, private third-party info)?
 
 A fact that passes all four is a commit candidate.
 
-### 2. Group by context
+### 3. Group by context
 
 Separate candidates into personal and work piles using the deduction rule in `CONTEXT.md`. A single session can produce commits to both stores — that's fine, just keep them separate.
 
-### 3. Show the user before saving
+### 4. Show the user before saving
 
 This skill is different from `remember-user-fact` because it's batch and retrospective — the user may not remember telling you half of this. Before saving, show the proposed commits:
 
@@ -55,13 +59,11 @@ Proceed? (you can edit, skip items, or reclassify)
 
 Respect edits and skips. Never save a fact the user rejected.
 
-### 4. Save
+### 5. Save
 
-For each approved fact, call the appropriate `add_memory` tool (see `remember-user-fact` SKILL.md for the exact parameter shape — `messages`, `user_id`, `project_id`, optional `metadata`).
+For each approved fact, call the configured add tool with the right scope parameters (see `remember-user-fact` SKILL.md for the per-record construction). Before each save, do a quick duplicate check via the configured search tool; if a close match exists, prefer an update over creating a duplicate.
 
-Before each save, do a quick duplicate check with `search_memories`. If a close match exists, use `update_memory` to extend rather than create a duplicate.
-
-### 5. Report
+### 6. Report
 
 One short summary line: "Saved 2 to personal, 1 to work." Do not re-list the facts.
 

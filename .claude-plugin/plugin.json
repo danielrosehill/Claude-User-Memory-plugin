@@ -1,12 +1,12 @@
 {
   "name": "claude-user-memory",
-  "version": "1.0.2",
-  "description": "Persistent cross-session memory about the user, backed by Mem0. Ships two isolated contexts (personal and work) so facts, preferences, and project details learned in one session are available in the next.",
+  "version": "2.0.0",
+  "description": "Persistent cross-session memory about the user, backend-agnostic. Ships a save/recall/commit contract plus a personal/work context routing rule; you supply the concrete memory MCP (Pinecone, Mem0, or any other) via a workspace memory-config.md.",
   "author": {
     "name": "Daniel Rosehill",
     "url": "https://github.com/danielrosehill"
   },
   "repository": "https://github.com/danielrosehill/Claude-User-Memory-plugin",
   "license": "MIT",
-  "keywords": ["memory", "mem0", "context", "personalization", "mcp"]
+  "keywords": ["memory", "context", "personalization", "mcp", "pinecone", "mem0"]
 }

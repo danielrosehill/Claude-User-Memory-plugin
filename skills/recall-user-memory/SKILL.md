@@ -1,6 +1,6 @@
 ---
 name: recall-user-memory
-description: Retrieve facts about the user from Mem0 when you suspect memory holds context you need — preferences, past decisions, ongoing projects, personal details. Invoke proactively any time you would otherwise ask the user something that feels like it should already be known, or when starting a task where prior context would help. Routes to personal or work store by the deduction rule in CONTEXT.md.
+description: Retrieve facts about the user from the configured personal-memory backend when you suspect memory holds context you need — preferences, past decisions, ongoing projects, personal details. Invoke proactively any time you would otherwise ask the user something that feels like it should already be known, or when starting a task where prior context would help. Routes to personal or work store by the deduction rule in CONTEXT.md. Concrete backend (Pinecone, Mem0, …) comes from the workspace's .claude/memory-config.md.
 ---
 
 # Recall user memory
@@ -18,14 +18,11 @@ Do **not** invoke for purely technical questions with no user-specific answer (e
 
 ## How to run it
 
-1. **Pick the context** — apply the deduction rule from `CONTEXT.md` (default personal; switch to work on explicit override, work cwd, or clearly-business conversation).
-2. **Choose the tool**:
-   - `mcp__mem0-personal__search_memories` or `mcp__mem0-work__search_memories` for semantic lookup by natural-language query.
-   - `mcp__mem0-personal__get_memories` or `mcp__mem0-work__get_memories` for filtered listing (recent, by tag, by entity).
-3. **Pass the right scope**:
-   - `project_id`: from `${MEM0_PERSONAL_PROJECT_ID}` or `${MEM0_WORK_PROJECT_ID}`.
-   - `user_id`: `"default"` unless told otherwise.
-   - `query`: a short natural-language phrase describing what you're looking for. Be specific — "preferred Python package manager" beats "tools".
+1. **Load the config** — read `.claude/memory-config.md` in the workspace. That file names the backend, the exact MCP tool to call for "search", and the scope parameters (index/namespace/project_id/etc.) for the chosen context. If the file is missing, stop and ask the user to install one (copy the plugin's `templates/memory-config.example.md`).
+2. **Pick the context** — apply the deduction rule from `CONTEXT.md` (default personal; switch to work on explicit override, work cwd, or clearly-business conversation).
+3. **Call the configured search tool** with:
+   - The context's scope parameters from `memory-config.md`.
+   - A short, specific natural-language query. "Preferred Python package manager" beats "tools".
 4. **Integrate silently** — use the result to shape your answer. Do not announce "I recalled from memory that…"; just work with the corrected context. If a recalled fact conflicts with what you're observing now, trust observation and flag the stale memory for update (invoke `remember-user-fact` to overwrite).
 5. **If memory is empty** — proceed as usual, then consider whether the answer you land on is worth saving (`remember-user-fact`) or queueing for end-of-session (`commit-learnings`).
 
